@@ -1,0 +1,15 @@
+{
+  "include": [
+    "duckflow",
+    "scripts",
+    "tests"
+  ],
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "extraPaths": [
+        "."
+      ]
+    }
+  ]
+}
