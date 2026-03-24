@@ -9,7 +9,8 @@ The split is intentional:
 
 ## Repository layout
 
-- `src/duckflow/core.py`: extraction, filtering, stitching, and Mermaid rendering logic
+- `duckflow/core.py`: extraction, filtering, stitching, and Mermaid rendering logic
+- `duckflow/cli.py`: installable CLI entry points
 - `scripts/extract_duckflow.py`: CLI for normalized JSON output
 - `scripts/generate_duckflow_mermaid.py`: CLI for Mermaid flowchart output
 - `tests/test_duckflow_tools.py`: parser and graph-behavior tests
@@ -80,7 +81,7 @@ The extractor and Mermaid generator build edges from local facts only:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e .[dev]
 ```
 
 ## Commands
@@ -88,10 +89,22 @@ pip install -e .
 Extract normalized entries:
 
 ```bash
+duckflow-extract --repo-root .
+```
+
+or:
+
+```bash
 python scripts/extract_duckflow.py --repo-root .
 ```
 
 Render Mermaid:
+
+```bash
+duckflow-mermaid --repo-root .
+```
+
+or:
 
 ```bash
 python scripts/generate_duckflow_mermaid.py --repo-root .
