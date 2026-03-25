@@ -45,6 +45,7 @@ def test_extract_duckflow_entries_from_python_comments() -> None:
 # duckflow: {
 #   "id": "summary.api",
 #   "kind": "api",
+#   "timestamp": "2026-03-25T00:00:00Z",
 #   "handles": ["POST /api/generate-summary"],
 #   "writes": ["state:session_summaries.ai_generated"],
 #   "returns": ["response:POST /api/generate-summary.summary"]
@@ -57,6 +58,7 @@ def handler():
 
     assert len(entries) == 1
     assert entries[0].id == "summary.api"
+    assert entries[0].timestamp == "2026-03-25T00:00:00Z"
     assert entries[0].handles == ("POST /api/generate-summary",)
     assert entries[0].writes == ("state:session_summaries.ai_generated",)
 
@@ -72,6 +74,7 @@ def test_stitch_duckflow_builds_call_and_data_edges() -> None:
 # duckflow: {
 #   "id": "summary.api",
 #   "kind": "api",
+#   "timestamp": "2026-03-25T00:00:00Z",
 #   "handles": ["POST /api/generate-summary"],
 #   "writes": ["state:session_summaries.ai_generated"],
 #   "returns": ["response:POST /api/generate-summary.summary"]
@@ -81,6 +84,7 @@ def test_stitch_duckflow_builds_call_and_data_edges() -> None:
 // duckflow: {
 //   "id": "summary.ui",
 //   "kind": "ui",
+//   "timestamp": "2026-03-25T00:00:00Z",
 //   "calls": ["POST /api/generate-summary"],
 //   "reads": ["response:POST /api/generate-summary.summary"]
 // }
@@ -118,6 +122,7 @@ def test_render_mermaid_marks_node_status() -> None:
 # duckflow: {
 #   "id": "summary.route",
 #   "kind": "api",
+#   "timestamp": "2026-03-25T00:00:00Z",
 #   "status": "planned"
 # }
 """
@@ -135,6 +140,7 @@ def test_extract_duckflow_ignores_non_comment_string_literals() -> None:
 payload = "duckflow: {\"id\": \"not_real\"}"
 # duckflow: {
 #   "id": "real.entry",
+#   "timestamp": "2026-03-25T00:00:00Z",
 #   "kind": "api"
 # }
 '''
@@ -155,6 +161,7 @@ def test_stitch_duckflow_skips_direct_live_to_planned_edges() -> None:
 # duckflow: {
 #   "id": "live.route",
 #   "kind": "api",
+#   "timestamp": "2026-03-25T00:00:00Z",
 #   "status": "live",
 #   "writes": ["state:summary_focus_override"]
 # }
@@ -163,6 +170,7 @@ def test_stitch_duckflow_skips_direct_live_to_planned_edges() -> None:
 # duckflow: {
 #   "id": "planned.route",
 #   "kind": "api",
+#   "timestamp": "2026-03-25T00:00:00Z",
 #   "status": "planned",
 #   "reads": ["state:summary_focus_override"]
 # }
@@ -177,6 +185,41 @@ def test_stitch_duckflow_skips_direct_live_to_planned_edges() -> None:
     graph = stitch_duckflow(entries)
 
     assert graph["edges"] == []
+
+
+def test_extract_duckflow_requires_timestamp() -> None:
+    extract_duckflow_entries_from_text, _, _, _ = _load_duckflow_api()
+    text = """
+# duckflow: {
+#   "id": "summary.route",
+#   "kind": "api"
+# }
+"""
+
+    try:
+        extract_duckflow_entries_from_text(text, Path("missing.py"))
+    except ValueError as exc:
+        assert "timestamp" in str(exc)
+    else:
+        raise AssertionError("missing timestamp should fail validation")
+
+
+def test_extract_duckflow_rejects_non_utc_timestamp_format() -> None:
+    extract_duckflow_entries_from_text, _, _, _ = _load_duckflow_api()
+    text = """
+# duckflow: {
+#   "id": "summary.route",
+#   "kind": "api",
+#   "timestamp": "2026-03-25"
+# }
+"""
+
+    try:
+        extract_duckflow_entries_from_text(text, Path("bad-timestamp.py"))
+    except ValueError as exc:
+        assert "YYYY-MM-DDTHH:MM:SSZ" in str(exc)
+    else:
+        raise AssertionError("invalid timestamp format should fail validation")
 
 
 def test_iter_source_files_skips_generated_dirs(

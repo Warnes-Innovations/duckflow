@@ -25,6 +25,7 @@ Required fields:
 
 - `id`: stable unique identifier for the annotated code block.
 - `kind`: one of `ui`, `api`, `state`, `orchestrator`, `artifact`, or another small local role label.
+- `timestamp`: UTC annotation update time in `YYYY-MM-DDTHH:MM:SSZ` format. Bump it whenever the annotated code block changes in a way that affects duckflow facts.
 
 Optional fields:
 
@@ -42,6 +43,7 @@ Example:
 {
   "id": "summary.api.generate",
   "kind": "api",
+  "timestamp": "2026-03-25T00:00:00Z",
   "status": "live",
   "handles": ["POST /api/generate-summary"],
   "writes": ["state:session_summaries.ai_generated"],
@@ -73,6 +75,7 @@ The extractor and Mermaid generator build edges from local facts only:
 - Keep annotations adjacent to the code they describe.
 - Record only facts visible in the local block.
 - Prefer a small number of stable tokens over prose.
+- Every annotation must include a UTC `timestamp`, and that timestamp must be refreshed whenever the annotated code changes.
 - When two implementations mirror the same local flow, annotate both and mark `status` accurately.
 - Do not describe whole workflows in source comments; let generated artifacts do that.
 

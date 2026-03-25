@@ -48,11 +48,12 @@ Read repo-local docs or instructions if present:
 #### Annotate
 
 - add duckflow comments adjacent to the code
+- include a UTC `timestamp` in `YYYY-MM-DDTHH:MM:SSZ` format
 - use stable tokens and accurate status values
 
 #### Update
 
-- revise tokens, status, notes, or adjacency as needed
+- revise timestamp, tokens, status, notes, or adjacency as needed
 - keep mirrored implementations aligned where relevant
 
 #### Review
@@ -68,6 +69,7 @@ Read repo-local docs or instructions if present:
 ### Step 5: Validate
 
 - ensure annotations are syntactically valid JSON objects inside comments
+- ensure every annotation includes a current UTC `timestamp`
 - run targeted tests if the repo has them
 - confirm generated artifacts are in sync when committed
 

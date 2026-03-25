@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 import json
 import re
 from dataclasses import dataclass
@@ -14,6 +15,7 @@ from typing import Any, Iterable
 
 
 COMMENT_PREFIX_RE = re.compile(r"^\s*(?:#|//|/\*+|\*+/|\*)\s?")
+TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 DEFAULT_INCLUDE_GLOBS = (
     "**/*.py",
     "**/*.js",
@@ -51,6 +53,7 @@ class DuckflowEntry:
 
     id: str
     kind: str
+    timestamp: str
     status: str
     handles: tuple[str, ...]
     calls: tuple[str, ...]
@@ -65,6 +68,7 @@ class DuckflowEntry:
         return {
             "id": self.id,
             "kind": self.kind,
+            "timestamp": self.timestamp,
             "status": self.status,
             "handles": list(self.handles),
             "calls": list(self.calls),
@@ -105,6 +109,22 @@ def _as_string_list(
     return tuple(value)
 
 
+def _normalize_timestamp(value: Any, entry_id: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise ValueError(
+            f"{entry_id}: 'timestamp' must be a non-empty string"
+        )
+
+    try:
+        datetime.strptime(value, TIMESTAMP_FORMAT)
+    except ValueError as exc:
+        raise ValueError(
+            f"{entry_id}: 'timestamp' must use UTC format YYYY-MM-DDTHH:MM:SSZ"
+        ) from exc
+
+    return value
+
+
 def _normalize_entry(
     data: dict[str, Any],
     path: Path,
@@ -120,6 +140,7 @@ def _normalize_entry(
         raise ValueError(
             f"{path}:{line}: duckflow entry must define non-empty 'kind'"
         )
+    timestamp = _normalize_timestamp(data.get("timestamp"), entry_id)
 
     status = data.get("status", "live")
     if not isinstance(status, str) or not status:
@@ -136,6 +157,7 @@ def _normalize_entry(
     return DuckflowEntry(
         id=entry_id,
         kind=kind,
+        timestamp=timestamp,
         status=status,
         handles=_as_string_list(data.get("handles"), "handles", entry_id),
         calls=_as_string_list(data.get("calls"), "calls", entry_id),
@@ -356,6 +378,7 @@ def render_mermaid(graph: dict[str, Any]) -> str:
         entry = DuckflowEntry(
             id=node["id"],
             kind=node["kind"],
+            timestamp=node["timestamp"],
             status=node["status"],
             handles=tuple(node["handles"]),
             calls=tuple(node["calls"]),

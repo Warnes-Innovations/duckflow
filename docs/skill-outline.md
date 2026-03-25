@@ -29,13 +29,15 @@ description: >
 1. Keep source comments local to the code block they describe.
 2. Record only facts visible in that local block.
 3. Prefer exact stable tokens over prose in `handles`, `calls`, `reads`, `writes`, and `returns`.
-4. Use `status` to distinguish live, planned, and shared flows.
-5. Let generated graphs describe the end-to-end workflow; do not narrate whole workflows in source comments.
+4. Require a UTC `timestamp` in `YYYY-MM-DDTHH:MM:SSZ` format and refresh it whenever the annotated code changes.
+5. Use `status` to distinguish live, planned, and shared flows.
+6. Let generated graphs describe the end-to-end workflow; do not narrate whole workflows in source comments.
 
 ### Annotation checklist
 
 - choose a stable `id`
 - choose a concise `kind`
+- add or refresh `timestamp`
 - capture local reads and writes only
 - prefer token equality over natural-language matching
 - verify mirrored implementations use compatible tokens
@@ -43,6 +45,7 @@ description: >
 ### Review checklist
 
 - annotation is adjacent to the code it describes
+- timestamp is present and reflects the latest code-facing duckflow update
 - tokens are stable and exact
 - status is accurate
 - generated artifacts were refreshed if the repo commits them
