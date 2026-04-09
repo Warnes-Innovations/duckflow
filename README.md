@@ -1,5 +1,9 @@
 # Duckflow
 
+[![PyPI version](https://img.shields.io/pypi/v/duckflow.svg)](https://pypi.org/project/duckflow/)
+[![Python versions](https://img.shields.io/pypi/pyversions/duckflow.svg)](https://pypi.org/project/duckflow/)
+[![License: AGPL v3+](https://img.shields.io/badge/License-AGPL%20v3%2B-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+
 `duckflow` is a lightweight annotation format and toolkit for tracing data flow through source code using local, comment-based facts.
 
 The split is intentional:
@@ -80,6 +84,14 @@ The extractor and Mermaid generator build edges from local facts only:
 - Do not describe whole workflows in source comments; let generated artifacts do that.
 
 ## Installation
+
+Install from PyPI:
+
+```bash
+pip install duckflow
+```
+
+Or install from source for development:
 
 ```bash
 python -m venv .venv
