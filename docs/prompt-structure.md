@@ -68,7 +68,7 @@ Read repo-local docs or instructions if present:
 
 ### Step 5: Validate
 
-- ensure annotations are syntactically valid JSON objects inside comments
+- ensure annotations are syntactically valid YAML mappings inside comments
 - ensure every annotation includes a current UTC `timestamp`
 - run targeted tests if the repo has them
 - confirm generated artifacts are in sync when committed

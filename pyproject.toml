@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Comment-based data-flow extraction and Mermaid rendering"
 readme = "README.md"
 requires-python = ">=3.10"
+dependencies = ["PyYAML>=6.0"]
 license = { text = "AGPL-3.0-or-later" }
 authors = [
   { name = "Gregory R. Warnes" }

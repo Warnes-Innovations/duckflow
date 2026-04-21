@@ -7,15 +7,30 @@
 from __future__ import annotations
 
 from datetime import datetime
-import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+import yaml
 
-COMMENT_PREFIX_RE = re.compile(r"^\s*(?:#|//|/\*+|\*+/|\*)\s?")
+
+COMMENT_PREFIX_RE = re.compile(r"^\s*(?:#|//|/\*+|\*+/|\*|\{#)\s?")
+COMMENT_SUFFIX_RE = re.compile(r"\s*(?:\*/|#\})\s*$")
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+ALLOWED_FIELDS = frozenset({
+    "id",
+    "kind",
+    "timestamp",
+    "status",
+    "handles",
+    "calls",
+    "reads",
+    "writes",
+    "returns",
+    "notes",
+})
+ALLOWED_STATUSES = frozenset({"live", "planned", "shared"})
 DEFAULT_INCLUDE_GLOBS = (
     "**/*.py",
     "**/*.js",
@@ -82,15 +97,114 @@ class DuckflowEntry:
 
 
 def _strip_comment_prefix(line: str) -> str:
-    return COMMENT_PREFIX_RE.sub("", line.rstrip("\n"))
+    cleaned = COMMENT_PREFIX_RE.sub("", line.rstrip("\n"))
+    return COMMENT_SUFFIX_RE.sub("", cleaned).rstrip()
 
 
 def _is_supported_comment_line(line: str) -> bool:
     return bool(COMMENT_PREFIX_RE.match(line))
 
 
-def _brace_delta(text: str) -> int:
-    return text.count("{") - text.count("}")
+def _collect_yaml_payload_lines(
+    lines: list[str],
+    index: int,
+) -> tuple[list[str], int, bool]:
+    current_line = lines[index]
+    payload_lines: list[str] = []
+    cleaned = _strip_comment_prefix(current_line)
+    _, payload = cleaned.split("duckflow:", 1)
+    first_payload_line = payload.lstrip()
+    has_inline_payload = bool(first_payload_line)
+    if first_payload_line:
+        payload_lines.append(first_payload_line)
+
+    next_index = index + 1
+    is_jinja_block = (
+        current_line.lstrip().startswith("{#")
+        and "#}" not in current_line
+    )
+    is_c_block = (
+        current_line.lstrip().startswith("/*")
+        and "*/" not in current_line
+    )
+    if is_jinja_block:
+        while next_index < len(lines):
+            raw_line = lines[next_index]
+            cleaned_line = _strip_comment_prefix(raw_line)
+            payload_lines.append(cleaned_line)
+            next_index += 1
+            if "#}" in raw_line:
+                break
+        return payload_lines, next_index, has_inline_payload
+
+    while next_index < len(lines):
+        next_line = lines[next_index]
+        if not _is_supported_comment_line(next_line):
+            break
+        cleaned_line = _strip_comment_prefix(next_line)
+        if "duckflow:" in cleaned_line:
+            break
+        payload_lines.append(cleaned_line)
+        next_index += 1
+        if is_c_block and "*/" in next_line:
+            break
+
+    return payload_lines, next_index, has_inline_payload
+
+
+def _normalize_payload_indentation(
+    payload_lines: list[str],
+    has_inline_payload: bool,
+) -> list[str]:
+    start_index = 1 if has_inline_payload else 0
+    indents = [
+        len(line) - len(line.lstrip(" "))
+        for line in payload_lines[start_index:]
+        if line.strip()
+    ]
+    if not indents:
+        return payload_lines
+
+    common_indent = min(indents)
+    if common_indent == 0:
+        return payload_lines
+
+    normalized = payload_lines[:start_index]
+    normalized.extend(
+        line[common_indent:] if line.strip() else ""
+        for line in payload_lines[start_index:]
+    )
+    return normalized
+
+
+def _parse_duckflow_payload(
+    lines: list[str],
+    index: int,
+    path: Path,
+) -> tuple[dict[str, Any], int, int]:
+    line_number = index + 1
+    payload_lines, next_index, has_inline_payload = _collect_yaml_payload_lines(
+        lines,
+        index,
+    )
+    payload_lines = _normalize_payload_indentation(
+        payload_lines,
+        has_inline_payload,
+    )
+    payload_text = "\n".join(payload_lines).strip()
+    if not payload_text:
+        raise ValueError(f"{path}:{line_number}: empty duckflow payload")
+    if payload_text.startswith(("{", "[")):
+        raise ValueError(
+            f"{path}:{line_number}: duckflow payload must use YAML mapping syntax"
+        )
+    try:
+        parsed = yaml.safe_load(payload_text)
+    except yaml.YAMLError as exc:
+        raise ValueError(
+            f"{path}:{line_number}: invalid duckflow YAML payload"
+        ) from exc
+    return parsed, next_index, line_number
 
 
 def _as_string_list(
@@ -130,6 +244,12 @@ def _normalize_entry(
     path: Path,
     line: int,
 ) -> DuckflowEntry:
+    unknown_fields = sorted(set(data) - ALLOWED_FIELDS)
+    if unknown_fields:
+        raise ValueError(
+            f"{path}:{line}: duckflow payload contains unsupported fields: {', '.join(unknown_fields)}"
+        )
+
     entry_id = data.get("id")
     kind = data.get("kind")
     if not isinstance(entry_id, str) or not entry_id:
@@ -146,6 +266,10 @@ def _normalize_entry(
     if not isinstance(status, str) or not status:
         raise ValueError(
             f"{entry_id}: 'status' must be a non-empty string when present"
+        )
+    if status not in ALLOWED_STATUSES:
+        raise ValueError(
+            f"{entry_id}: 'status' must be one of {', '.join(sorted(ALLOWED_STATUSES))}"
         )
 
     notes = data.get("notes", "")
@@ -189,25 +313,10 @@ def extract_duckflow_entries_from_text(
             index += 1
             continue
 
-        line_number = index + 1
-        _, payload = cleaned.split("duckflow:", 1)
-        payload_lines = [payload.strip()]
-        depth = _brace_delta(payload)
-        index += 1
-        while index < len(lines) and depth > 0:
-            next_line = _strip_comment_prefix(lines[index])
-            payload_lines.append(next_line)
-            depth += _brace_delta(next_line)
-            index += 1
-
-        payload_text = "\n".join(payload_lines).strip()
-        if not payload_text:
-            raise ValueError(f"{path}:{line_number}: empty duckflow payload")
-
-        data = json.loads(payload_text)
+        data, index, line_number = _parse_duckflow_payload(lines, index, path)
         if not isinstance(data, dict):
             raise ValueError(
-                f"{path}:{line_number}: duckflow payload must be a JSON object"
+                f"{path}:{line_number}: duckflow payload must be a YAML mapping"
             )
         entries.append(_normalize_entry(data, path, line_number))
 

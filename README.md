@@ -19,7 +19,8 @@ The split is intentional:
 
 ## Minimal schema
 
-Each annotation is a JSON object stored in a source comment after `duckflow:`.
+Each annotation is a YAML mapping stored in a source comment after `duckflow:`.
+Use one fixed vocabulary only.
 
 Required fields:
 
@@ -37,19 +38,31 @@ Optional fields:
 - `returns`: response or function-output tokens exposed locally.
 - `notes`: brief local clarification.
 
-Example:
-
-```json
-{
-  "id": "summary.api.generate",
-  "kind": "api",
-  "timestamp": "2026-03-25T00:00:00Z",
-  "status": "live",
-  "handles": ["POST /api/generate-summary"],
-  "writes": ["state:session_summaries.ai_generated"],
-  "returns": ["response:POST /api/generate-summary.summary"]
-}
+```text
+# duckflow:
+#   id: summary.api.generate
+#   kind: api
+#   timestamp: "2026-03-25T00:00:00Z"
+#   status: live
+#   handles: ["POST /api/generate-summary"]
+#   writes: ["state:session_summaries.ai_generated"]
+#   returns: ["response:POST /api/generate-summary.summary"]
 ```
+
+Allowed keys:
+
+- `id`
+- `kind`
+- `timestamp`
+- `status`
+- `handles`
+- `calls`
+- `reads`
+- `writes`
+- `returns`
+- `notes`
+
+Legacy JSON and shorthand annotations are not supported.
 
 ## Token conventions
 
