@@ -27,9 +27,11 @@ classifiers = [
 [project.scripts]
 duckflow-extract = "duckflow.cli:extract_main"
 duckflow-mermaid = "duckflow.cli:mermaid_main"
+duckflow-mcp = "duckflow.server:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+mcp = ["mcp>=1.0"]
 
 [tool.setuptools.packages.find]
 include = ["duckflow*"]
